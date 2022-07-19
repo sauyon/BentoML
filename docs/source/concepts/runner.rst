@@ -277,36 +277,6 @@ Runner Options
     )
 
 
-Specifying Required Resources
------------------------------
-
-.. TODO::
-    Document Runner resource specification, how it works, and how to override it with
-    runtime configuration
-
-.. code:: python
-
-    my_runner = bentoml.Runner(MyRunnable, cpu=1)
-
-    my_model_runner = bentoml.pytorch.get("my_model:latest").to_runner(gpu=1)
-
-
-.. code:: yaml
-
-    runners:
-      - name: iris_clf
-        cpu: 4
-        nvidia_gpu: 0  # requesting 0 GPU
-        max_batch_size: 20
-      - name: my_custom_runner
-        cpu: 2
-        nvidia_gpu: 2  # requesting 2 GPUs
-        runnable_method_configs:
-          - name: "predict"
-            max_batch_size: 10
-            max_latency_ms: 500
-
-
 Distributed Runner with Yatai
 -----------------------------
 
