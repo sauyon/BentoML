@@ -61,7 +61,7 @@ message NDArray {
 
 // This represents a 1-d array.
 message Array {
-  optional DataType dtype = 1;
+  optional ValueType dtype = 1;
 
   // Type specific representations that make it easy to create protos in
   // all languages. The values hold the flattened representation of the inputs in row major order.
@@ -73,35 +73,35 @@ message Array {
   // for quantized types, use bytes_contents
   bytes bytes_contents = 2;
 
-  // DT_BOOL
+  // BOOL
   repeated bool bool_contents = 7 [packed = true];
 
-  // DT_FLOAT, DT_COMPLEX64
+  // FLOAT, COMPLEX64
   // Note that since protobuf has no int16 type, we'll have some pointless zero padding for each value here.
   repeated float float_contents = 3 [packed = true];
 
-  // DT_STRING
+  // STRING
   repeated string string_contents = 6;
 
-  // DT_DOUBLE, DT_COMPLEX128
+  // DOUBLE, COMPLEX128
   repeated double double_contents = 4 [packed = true];
 
-  // DT_INT32, DT_INT16, DT_UINT16, DT_INT8, DT_UINT8, DT_HALF, DT_BFLOAT16
+  // INT32, INT16, UINT16, INT8, UINT8, HALF, BFLOAT16
   repeated int32 int_contents = 5 [packed = true];
 
-  // DT_INT64
+  // INT64
   repeated int64 long_contents = 8 [packed = true];
 
-  // DT_UINT32
+  // UINT32
   repeated uint32 uint32_val = 11 [packed = true];
 
-  // DT_UINT64
+  // UINT64
   repeated uint64 uint64_val = 12 [packed = true];
 
   // TODO: support single/double precision complex value type.
 
   // User can specify arbitrary struct that then can be parsed to numpy.
-  // DT_STRUCT
+  // STRUCT, OBJECT
   repeated google.protobuf.Struct struct_contents = 10;
 
   reserved 13, 14, 15;
@@ -141,55 +141,56 @@ message Value {
 }
 
 // Represents data type that can be passed to numpy.
-enum DataType {
-  // Not a legal value for DataType.  Used to indicate a DataType field
+enum ValueType {
+  // Not a legal value for ValueType.  Used to indicate a ValueType field
   // has not been set.
-  DT_UNSPECIFIED = 0;
+  UNSPECIFIED = 0;
 
   // Data types that all computation devices are expected to be
   // capable to support.
-  DT_FLOAT = 1;
-  DT_DOUBLE = 2;
+  FLOAT = 1;
+  DOUBLE = 2;
 
   // int type
-  DT_INT64 = 9;
-  DT_INT32 = 3;
-  DT_INT16 = 5;
-  DT_INT8 = 6;
+  INT64 = 9;
+  INT32 = 3;
+  INT16 = 5;
+  INT8 = 6;
 
   // string type
-  DT_STRING = 7;
+  STRING = 7;
 
   // bool type
-  DT_BOOL = 10;
+  BOOL = 10;
 
   // Represents half data type (32 -> 16 bits).
-  DT_HALF = 19;
+  HALF = 19;
   // Float32 truncated to 16 bits.  Only for cast ops.
-  DT_BFLOAT16 = 14;
+  BFLOAT16 = 14;
 
   // Quantized int8
-  DT_QINT8 = 11;
+  QINT8 = 11;
   // Quantized uint8
-  DT_QUINT8 = 12;
+  QUINT8 = 12;
   // Quantized int32
-  DT_QINT32 = 13;
+  QINT32 = 13;
   // Quantized int16
-  DT_QINT16 = 15;
+  QINT16 = 15;
   // Quantized uint16
-  DT_QUINT16 = 16;
+  QUINT16 = 16;
 
   // Double-precision complex
-  DT_COMPLEX128 = 18;
+  COMPLEX128 = 18;
   // Single-precision complex
-  DT_COMPLEX64 = 8;
+  COMPLEX64 = 8;
 
   // unsigned int type
-  DT_UINT64 = 21;
-  DT_UINT32 = 20;
-  DT_UINT16 = 17;
-  DT_UINT8 = 4;
+  UINT64 = 21;
+  UINT32 = 20;
+  UINT16 = 17;
+  UINT8 = 4;
 
   // struct dtype
-  DT_STRUCT = 22;
+  STRUCT = 22;
+  OBJECT = 23;
 }

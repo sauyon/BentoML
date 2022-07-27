@@ -113,7 +113,6 @@ class ExceptionHandlerInterceptor(AsyncServerInterceptor):
             status_code = grpc.StatusCode.UNKNOWN
 
         await context.abort(code=status_code, details=details)
-        raise ex
 
     async def generate_responses(
         self,
