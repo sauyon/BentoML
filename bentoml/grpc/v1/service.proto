@@ -17,103 +17,57 @@ option py_generic_services = true;
 // a gRPC BentoServer.
 service BentoService {
   // Infer handles unary API.
-  rpc Infer(Request) returns (Response) {}
+  rpc Call(Request) returns (Response) {}
 }
 
-// Request for Infer.
+// Request for Call.
 message Request {
   // a given API route the rpc request is sent to.
   string api_name = 1;
 
-  Value contents = 2;
-
-// TODO:
-// The data contained in an input can be represented in
-// "raw" bytes form or in the repeated type that matches the data type.
-// Using the "raw" bytes form will typically allow higher performance due to the way protobuf
-// allocation and reuse interacts with GRPC.
-// For example, see https://github.com/grpc/grpc/issues/23231.
-// bytes raw_bytes_contents = 3;
+  Value input = 2;
 }
 
-// Response from Infer.
+// Response from Call.
 message Response {
   // representation of the output value.
-  Value contents = 1;
-
-// TODO:
-// The data contained in an input can be represented in
-// "raw" bytes form or in the repeated type that matches the data type.
-// Using the "raw" bytes form will typically allow higher performance due to the way protobuf
-// allocation and reuse interacts with GRPC.
-// For example, see https://github.com/grpc/grpc/issues/23231.
-// bytes raw_bytes_contents = 2;
+  Value output = 1;
 }
 
-// Represents a n-dimensional array.
-// This is synonymous to NumpyNdarray IO Descriptor.
-message NDArray {
+// Represents an n-dimensional array.
+message MultiDimensionalArray {
   // The shape of the array.
   repeated int32 shape = 1;
-  // The contents of the array as flattened.
+  // The flattened contents of the nd array.
   optional Array array = 2;
 }
 
 // This represents a 1-d array.
 message Array {
-  optional ValueType dtype = 1;
-
-  // Type specific representations that make it easy to create protos in
-  // all languages. The values hold the flattened representation of the inputs in row major order.
-
-  // Serialized bytes contents.
-  // The purpose of this representation is to
-  // reduce serialization overhead during RPC call by avoiding serialization of
-  // many repeated small items.
-  // for quantized types, use bytes_contents
-  bytes bytes_contents = 2;
-
-  // BOOL
   repeated bool bool_contents = 7 [packed = true];
-
-  // FLOAT, COMPLEX64
-  // Note that since protobuf has no int16 type, we'll have some pointless zero padding for each value here.
-  repeated float float_contents = 3 [packed = true];
-
-  // STRING
+  repeated float float_values = 3 [packed = true];
   repeated string string_contents = 6;
-
-  // DOUBLE, COMPLEX128
   repeated double double_contents = 4 [packed = true];
-
-  // INT32, INT16, UINT16, INT8, UINT8, HALF, BFLOAT16
   repeated int32 int_contents = 5 [packed = true];
-
-  // INT64
   repeated int64 long_contents = 8 [packed = true];
-
-  // UINT32
   repeated uint32 uint32_val = 11 [packed = true];
-
-  // UINT64
   repeated uint64 uint64_val = 12 [packed = true];
 
   // TODO: support single/double precision complex value type.
 
-  // User can specify arbitrary struct that then can be parsed to numpy.
-  // STRUCT, OBJECT
-  repeated google.protobuf.Struct struct_contents = 10;
+  // TODO: arbitrary structs
+  // repeated google.protobuf.Struct struct_contents = 10;
 
   reserved 13, 14, 15;
 }
 
 // Represents file types.
-// This is synonymous to File IO Descriptor.
-message File {
+message Raw {
   // type of file, let it be csv, text ,parquet,  etc.
   optional string kind = 1;
+  map<string, string> metadata = 2;
   // contents of file as bytes.
-  bytes content = 2;
+  bytes content = 3;
 }
 
 // Represents a map value.
@@ -127,70 +81,16 @@ message Value {
   oneof kind {
     // Text()
     string string_value = 1;
-    // File(), Image()
-    File file_value = 2;
+    // File(), Image(), raw byte forms of ndarray, dataframe
+    Raw raw_value = 2;
     // NDArray(), etc.
     Array array_value = 3;
-    // NDArray(), etc.
-    NDArray ndarray_value = 4;
+    // NDArray(), DataFrame(), etc.
+    MultiDimensionalArray multi_dimensional_array_value = 4;
     // DataFrame()
     MapValue map_value = 5;
   }
+
   // We want to reserve these for future uses.
   reserved 56 to 100;
-}
-
-// Represents data type that can be passed to numpy.
-enum ValueType {
-  // Not a legal value for ValueType.  Used to indicate a ValueType field
-  // has not been set.
-  UNSPECIFIED = 0;
-
-  // Data types that all computation devices are expected to be
-  // capable to support.
-  FLOAT = 1;
-  DOUBLE = 2;
-
-  // int type
-  INT64 = 9;
-  INT32 = 3;
-  INT16 = 5;
-  INT8 = 6;
-
-  // string type
-  STRING = 7;
-
-  // bool type
-  BOOL = 10;
-
-  // Represents half data type (32 -> 16 bits).
-  HALF = 19;
-  // Float32 truncated to 16 bits.  Only for cast ops.
-  BFLOAT16 = 14;
-
-  // Quantized int8
-  QINT8 = 11;
-  // Quantized uint8
-  QUINT8 = 12;
-  // Quantized int32
-  QINT32 = 13;
-  // Quantized int16
-  QINT16 = 15;
-  // Quantized uint16
-  QUINT16 = 16;
-
-  // Double-precision complex
-  COMPLEX128 = 18;
-  // Single-precision complex
-  COMPLEX64 = 8;
-
-  // unsigned int type
-  UINT64 = 21;
-  UINT32 = 20;
-  UINT16 = 17;
-  UINT8 = 4;
-
-  // struct dtype
-  STRUCT = 22;
-  OBJECT = 23;
 }
