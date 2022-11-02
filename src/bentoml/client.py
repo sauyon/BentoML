@@ -9,7 +9,7 @@ from abc import abstractmethod
 from http.client import HTTPConnection
 from urllib.parse import urlparse
 
-import aiohttp
+import httpx
 import starlette.requests
 import starlette.datastructures
 
@@ -65,12 +65,10 @@ class Client(ABC):
     @staticmethod
     def from_url(server_url: str) -> Client:
         server_url = server_url if "://" in server_url else "http://" + server_url
-        url_parts = urlparse(server_url)
 
         # TODO: SSL and grpc support
-        conn = HTTPConnection(url_parts.netloc)
-        conn.request("GET", "/docs.json")
-        resp = conn.getresponse()
+        conn = httpx.Client()
+        resp = conn.get(f"{server_url}/docs.json")
         openapi_spec = json.load(resp)
         conn.close()
 
@@ -126,22 +124,22 @@ class HTTPClient(Client):
         fake_resp = await api.input.to_http_response(inp, None)
         req_body = fake_resp.body
 
-        async with aiohttp.ClientSession(self.server_url) as sess:
-            async with sess.post(
-                "/" + api.route,
-                data=req_body,
+        async with httpx.AsyncClient(base_url=self.server_url) as sess:
+            resp = await sess.post(
+                f"/{api.route}",
+                content=req_body,
                 headers={"content-type": fake_resp.headers["content-type"]},
-            ) as resp:
-                if resp.status != 200:
-                    raise BentoMLException(
-                        f"Error making request: {resp.status}: {str(await resp.read())}"
-                    )
+            )
+            if resp.status_code != 200:
+                raise BentoMLException(
+                    f"Error making request: {resp.status_code}: {str(resp.read())}"
+                )
 
-                fake_req = starlette.requests.Request(scope={"type": "http"})
-                headers = starlette.datastructures.Headers(headers=resp.headers)
-                fake_req._body = await resp.read()
-                # Request.headers sets a _headers variable. We will need to set this
-                # value to our fake request object.
-                fake_req._headers = headers  # type: ignore (request._headers is property)
+            fake_req = starlette.requests.Request(scope={"type": "http"})
+            headers = starlette.datastructures.Headers(headers=resp.headers)
+            fake_req._body = resp.read()
+            # Request.headers sets a _headers variable. We will need to set this
+            # value to our fake request object.
+            fake_req._headers = headers  # type: ignore (request._headers is property)
 
         return await api.output.from_http_request(fake_req)
