@@ -415,7 +415,7 @@ result.
 
 .. code-block:: python
 
-    import aiohttp
+    import httpx
     import asyncio
 
     # Load two runners for two different versions of the ScikitLearn
@@ -426,9 +426,9 @@ result.
     @svc.api(input=NumpyNdarray(), output=NumpyNdarray())
     async def predict(input_array: np.ndarray) -> np.ndarray:
         # Call a remote feature store to pre-process the request
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://features/get', params=input_array[0]) as resp:
-                features = get_features(await resp.text())
+        async with httpx.AsyncClient() as client:
+            resp = await client.get('https://features/get', params=input_array[0])
+            features = get_features(resp.text())
 
         # Invoke both model runners simultaneously
         results = await asyncio.gather(
