@@ -3,14 +3,13 @@ from __future__ import annotations
 import typing as t
 from typing import TYPE_CHECKING
 
-import aiohttp
 import multidict
 
 if TYPE_CHECKING:
+    from httpx._types import HeaderTypes
     from starlette.types import Send
     from starlette.types import Scope
     from starlette.types import Receive
-    from aiohttp.typedefs import LooseHeaders
     from starlette.datastructures import Headers
     from starlette.datastructures import FormData
 
@@ -51,28 +50,30 @@ def handle_assert_exception(assert_object: t.Any, obj: t.Any, msg: str):
 async def async_request(
     method: str,
     url: str,
-    headers: None | tuple[tuple[str, str], ...] | LooseHeaders = None,
-    data: t.Any = None,
+    headers: None | tuple[tuple[str, str], ...] | HeaderTypes = None,
+    content: str | bytes | None = None,
+    files: dict[str, t.Any] | None = None,
     timeout: int | None = None,
     assert_status: int | t.Callable[[int], bool] | None = None,
     assert_data: bytes | t.Callable[[bytes], bool] | None = None,
     assert_headers: t.Callable[[t.Any], bool] | None = None,
 ) -> tuple[int, Headers, bytes]:
+    import httpx
     from starlette.datastructures import Headers
 
-    async with aiohttp.ClientSession() as sess:
+    async with httpx.AsyncClient() as sess:
         try:
-            async with sess.request(
-                method, url, data=data, headers=headers, timeout=timeout
-            ) as resp:
-                body = await resp.read()
+            resp = await sess.request(
+                method, url, content=content, files=files, headers=headers, timeout=timeout
+            )
+            body = resp.read()
         except Exception:
             raise RuntimeError("Unable to reach host.") from None
     if assert_status is not None:
         handle_assert_exception(
             assert_status,
-            resp.status,
-            f"Return status [{resp.status}] with body: {body!r}",
+            resp.status_code,
+            f"Return status [{resp.status_code}] with body: {body!r}",
         )
     if assert_data is not None:
         if callable(assert_data):
@@ -90,7 +91,7 @@ async def async_request(
             resp.headers,
             f"Headers assertion failed: {resp.headers!r}",
         )
-    return resp.status, Headers(resp.headers), body
+    return resp.status_code, Headers(resp.headers), body
 
 
 def assert_distributed_header(headers: multidict.CIMultiDict[str]) -> None:
@@ -108,12 +109,12 @@ async def http_proxy_app(scope: Scope, receive: Receive, send: Send):
         return
 
     if scope["type"] == "http":
-        async with aiohttp.ClientSession() as session:
-            headers = multidict.CIMultiDict(
-                tuple((k.decode(), v.decode()) for k, v in scope["headers"])
-            )
+        import httpx
 
-            assert_distributed_header(headers)
+        async with httpx.AsyncClient() as session:
+            headers = tuple((k.decode(), v.decode()) for k, v in scope["headers"])
+
+            assert_distributed_header(multidict.CIMultiDict(headers))
             bodies: list[bytes] = []
             while True:
                 request_message = await receive()
@@ -124,27 +125,27 @@ async def http_proxy_app(scope: Scope, receive: Receive, send: Send):
                 if not request_message["more_body"]:
                     break
 
-            async with session.request(
+            response = await session.request(
                 method=scope["method"],
                 url=scope["path"],
                 headers=headers,
-                data=b"".join(bodies),
-            ) as response:
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": response.status,
-                        "headers": list(response.raw_headers),
-                    }
-                )
-                response_body: bytes = await response.read()
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": response_body,
-                        "more_body": False,
-                    }
-                )
+                content=b"".join(bodies),
+            )
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": response.status_code,
+                    "headers": response.headers.raw,
+                }
+            )
+            response_body: bytes = response.read()
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": response_body,
+                    "more_body": False,
+                }
+            )
         return
 
     raise NotImplementedError(f"Scope {scope} is not understood.") from None

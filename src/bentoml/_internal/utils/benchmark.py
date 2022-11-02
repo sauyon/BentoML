@@ -292,12 +292,12 @@ class BenchmarkClient:
         self._stop_loop_flag = False
 
     async def _start(self):
-        from aiohttp import ClientSession
-        from aiohttp.client_exceptions import ServerDisconnectedError
+        from httpx import AsyncClient
+        import httpx
 
         wait_time_suffix = 0
         url, method, headers, data = self.request_producer()
-        async with ClientSession() as sess:
+        async with AsyncClient() as sess:
             while True:
                 req_start = time.time()
                 req_url = self.url_override or url
@@ -305,20 +305,19 @@ class BenchmarkClient:
                 group = ""
                 # noinspection PyUnresolvedReferences
                 try:
-                    async with sess.request(
+                    r = await sess.request(
                         method,
                         req_url,
                         data=data,
                         headers=headers,
                         timeout=self.timeout,
-                    ) as r:
-                        msg = await r.text()
-                        if not self.verify_response(r.status, msg):
-                            group = f"{r.status}"
-                            err = f"<status: {r.status}>\n{msg}"
+                    )
+                    if not self.verify_response(r.status_code, r.text):
+                        group = f"{r.status_code}"
+                        err = f"<status: {r.status_code}>\n{r.text}"
                 except asyncio.CancelledError:  # pylint: disable=try-except-raise
                     raise
-                except (ServerDisconnectedError, TimeoutError) as e:
+                except (httpx.RemoteProtocolError, TimeoutError) as e:
                     group = repr(e.__class__)
                     err = repr(e)
                 except Exception as e:  # pylint: disable=broad-except

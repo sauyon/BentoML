@@ -74,7 +74,7 @@ async def test_cors(host: str, server_config_file: str) -> None:
         "POST",
         f"http://{host}/echo_json",
         headers={"Content-Type": "application/json", "Origin": ORIGIN},
-        data='"hi"',
+        content='"hi"',
     )
     if fname == "cors_enabled.yml":
         assert status == 200
@@ -121,7 +121,7 @@ async def test_metrics_type(host: str, deployment_mode: str):
         "POST",
         f"http://{host}/echo_data_metric",
         headers={"Content-Type": "application/json"},
-        data="input_string",
+        content="input_string",
     )
     # The reason we have to do this is that there is no way
     # to access the metrics inside a running container.
@@ -130,6 +130,6 @@ async def test_metrics_type(host: str, deployment_mode: str):
         "POST",
         f"http://{host}/ensure_metrics_are_registered",
         headers={"Content-Type": "application/json"},
-        data="input_string",
+        content="input_string",
         assert_status=200,
     )

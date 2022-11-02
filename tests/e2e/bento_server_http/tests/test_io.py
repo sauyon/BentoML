@@ -3,11 +3,11 @@ from __future__ import annotations
 import io
 import sys
 import json
+import typing as t
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-import aiohttp
 
 from bentoml.testing.utils import async_request
 from bentoml.testing.utils import parse_multipart_form
@@ -26,7 +26,7 @@ async def test_numpy(host: str):
         "POST",
         f"http://{host}/predict_ndarray_enforce_shape",
         headers={"Content-Type": "application/json"},
-        data="[[1,2],[3,4]]",
+        content="[[1,2],[3,4]]",
         assert_status=200,
         assert_data=b"[[2, 4], [6, 8]]",
     )
@@ -34,7 +34,7 @@ async def test_numpy(host: str):
         "POST",
         f"http://{host}/predict_ndarray_multi_output",
         headers={"Content-Type": "application/json"},
-        data="[[1,2],[3,4]]",
+        content="[[1,2],[3,4]]",
         assert_status=200,
         assert_data=b"[[2, 4], [6, 8]]",
     )
@@ -42,14 +42,14 @@ async def test_numpy(host: str):
         "POST",
         f"http://{host}/predict_ndarray_enforce_shape",
         headers={"Content-Type": "application/json"},
-        data="[1,2,3,4]",
+        content="[1,2,3,4]",
         assert_status=400,
     )
     await async_request(
         "POST",
         f"http://{host}/predict_ndarray_enforce_dtype",
         headers={"Content-Type": "application/json"},
-        data="[[2,1],[4,3]]",
+        content="[[2,1],[4,3]]",
         assert_status=200,
         assert_data=b'[["4", "2"], ["8", "6"]]',
     )
@@ -57,7 +57,7 @@ async def test_numpy(host: str):
         "POST",
         f"http://{host}/predict_ndarray_enforce_dtype",
         headers={"Content-Type": "application/json"},
-        data='[["2f",1],[4,3]]',
+        content='[["2f",1],[4,3]]',
         assert_status=400,
     )
 
@@ -70,7 +70,7 @@ async def test_json(host: str):
         "POST",
         f"http://{host}/echo_json",
         headers=(("Content-Type", "application/json"), ("Origin", ORIGIN)),
-        data='"hi"',
+        content='"hi"',
         assert_status=200,
         assert_data=b'"hi"',
     )
@@ -79,7 +79,7 @@ async def test_json(host: str):
         "POST",
         f"http://{host}/echo_json_sync",
         headers=(("Content-Type", "application/json"), ("Origin", ORIGIN)),
-        data='"hi"',
+        content='"hi"',
         assert_status=200,
         assert_data=b'"hi"',
     )
@@ -88,7 +88,7 @@ async def test_json(host: str):
         "POST",
         f"http://{host}/echo_json_enforce_structure",
         headers=(("Content-Type", "application/json"), ("Origin", ORIGIN)),
-        data='{"name":"test","endpoints":["predict","health"]}',
+        content='{"name":"test","endpoints":["predict","health"]}',
         assert_status=200,
         assert_data=b'{"name":"test","endpoints":["predict","health"]}',
     )
@@ -102,7 +102,7 @@ async def test_obj(host: str):
             "POST",
             f"http://{host}/echo_obj",
             headers=(("Content-Type", "application/json"),),
-            data=obj_str,
+            content=obj_str,
             assert_status=200,
             assert_data=obj_str.encode("utf-8"),
         )
@@ -120,7 +120,7 @@ async def test_pandas(host: str):
         "POST",
         f"http://{host}/predict_dataframe",
         headers=(("Content-Type", "application/json"), ("Origin", ORIGIN)),
-        data=df.to_json(orient="records"),
+        content=df.to_json(orient="records"),
         assert_status=200,
         assert_data=b'[{"col1":202}]',
     )
@@ -131,7 +131,7 @@ async def test_pandas(host: str):
             "POST",
             f"http://{host}/predict_dataframe",
             headers=(("Content-Type", "application/octet-stream"), ("Origin", ORIGIN)),
-            data=df.to_parquet(),
+            content=df.to_parquet(),
             assert_status=200,
             assert_data=b'[{"col1":202}]',
         )
@@ -140,7 +140,7 @@ async def test_pandas(host: str):
         "POST",
         f"http://{host}/predict_dataframe",
         headers=(("Content-Type", "text/csv"), ("Origin", ORIGIN)),
-        data=df.to_csv(),
+        content=df.to_csv(),
         assert_status=200,
         assert_data=b'[{"col1":202}]',
     )
@@ -155,19 +155,16 @@ async def test_file(host: str, bin_file: str):
     await async_request(
         "POST",
         f"http://{host}/predict_file",
-        data=b,
+        content=b,
         headers={"Content-Type": "application/octet-stream"},
         assert_data=b"\x810\x899",
     )
 
     # Test File as multipart binary
-    form = aiohttp.FormData()
-    form.add_field("file", b, content_type="application/octet-stream")
-
     await async_request(
         "POST",
         f"http://{host}/predict_file",
-        data=form,
+        files={"file": ("file", b, "application/octet-stream")},
         assert_data=b"\x810\x899",
     )
 
@@ -175,7 +172,7 @@ async def test_file(host: str, bin_file: str):
     await async_request(
         "POST",
         f"http://{host}/predict_file",
-        data=b,
+        content=b,
         headers={"Content-Type": "application/pdf"},
         assert_status=500,
     )
@@ -189,7 +186,7 @@ async def test_image(host: str, img_file: str):
     status, headers, body = await async_request(
         "POST",
         f"http://{host}/echo_image",
-        data=img_bytes,
+        content=img_bytes,
         headers={"Content-Type": "image/bmp"},
     )
     assert status == 200
@@ -206,7 +203,7 @@ async def test_image(host: str, img_file: str):
     await async_request(
         "POST",
         f"http://{host}/echo_image",
-        data=img_bytes,
+        content=img_bytes,
         headers={"Content-Type": "application/json"},
         assert_status=400,
     )
@@ -216,44 +213,48 @@ async def test_image(host: str, img_file: str):
     await async_request(
         "POST",
         f"http://{host}/echo_image",
-        data=b,
+        content=b,
         headers={"Content-Type": "application/pdf"},
         assert_status=400,
     )
 
 
 @pytest.fixture(name="img_form_data")
-def fixture_img_form_data(img_file: str):
+def fixture_img_form_data(img_file: str) -> dict[str, tuple[str, t.BinaryIO, str]]:
     with open(img_file, "rb") as f1, open(img_file, "rb") as f2:
-        form = aiohttp.FormData()
-        form.add_field("original", f1.read(), content_type="image/bmp")
-        form.add_field("compared", f2.read(), content_type="image/bmp")
-    yield form
+        return {
+            "original": ("original", f1, "image/bmp"),
+            "compared": ("compared", f2, "image/bmp"),
+        }
 
 
 @pytest.mark.asyncio
-async def test_multipart_image_io(host: str, img_form_data: aiohttp.FormData):
+async def test_multipart_image_io(
+    host: str, img_form_data: dict[str, tuple[str, t.BinaryIO, str]]
+):
     from starlette.datastructures import UploadFile
 
     _, headers, body = await async_request(
         "POST",
         f"http://{host}/predict_multi_images",
-        data=img_form_data,
+        files=img_form_data,
         assert_status=200,
     )
 
     form = await parse_multipart_form(headers=headers, body=body)
     for _, v in form.items():
         assert isinstance(v, UploadFile)
-        img = PILImage.open(v.file)
+        img = PILImage.open(
+            v.file  # type: ignore # UploadFile has no type
+        )
         assert np.array(img).shape == (10, 10, 3)
 
 
 @pytest.mark.asyncio
-async def test_multipart_image_io(host: str, img_form_data: aiohttp.FormData):
+async def test_multipart_image_io_1(host: str, img_form_data: dict[str, t.Any]):
     await async_request(
         "POST",
         f"http://{host}/predict_different_args",
-        data=img_form_data,
+        files=img_form_data,
         assert_status=200,
     )
