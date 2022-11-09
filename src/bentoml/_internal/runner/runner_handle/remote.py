@@ -75,7 +75,7 @@ class RemoteRunnerClient(RunnerHandle):
                 self._conn = aiohttp.UnixConnector(
                     path=path,
                     loop=self._loop,
-                    limit=800,  # TODO(jiang): make it configurable
+                    limit=30,  # TODO(jiang): make it configurable
                     keepalive_timeout=1800.0,
                 )
                 self._addr = "http://127.0.0.1:8000"  # addr doesn't matter with UDS
@@ -83,7 +83,7 @@ class RemoteRunnerClient(RunnerHandle):
                 self._conn = aiohttp.TCPConnector(
                     loop=self._loop,
                     verify_ssl=False,
-                    limit=800,  # TODO(jiang): make it configurable
+                    limit=30,  # TODO(jiang): make it configurable
                     keepalive_timeout=1800.0,
                 )
                 self._addr = f"http://{parsed.netloc}"

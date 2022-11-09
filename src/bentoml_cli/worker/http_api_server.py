@@ -162,11 +162,11 @@ def main(
             ssl_ciphers = "TLSv1"
             uvicorn_options["ssl_ciphers"] = ssl_ciphers
 
-    if psutil.WINDOWS:
-        uvicorn_options["loop"] = "asyncio"
-        import asyncio
+    # if psutil.WINDOWS:
+    #     uvicorn_options["loop"] = "asyncio"
+    #     import asyncio
 
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore
+    #     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore
 
     import uvicorn
 

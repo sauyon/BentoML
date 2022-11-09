@@ -60,7 +60,7 @@ runners:
   resources: ~
   logging:
     access:
-      enabled: true
+      enabled: false
       request_content_length: true
       request_content_type: true
       response_content_length: true
