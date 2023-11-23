@@ -32,6 +32,8 @@ if t.TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+global limiter
+limiter = None
 
 DEFAULT_INDEX_HTML = """\
 <!DOCTYPE html>
@@ -315,12 +317,16 @@ class HTTPAppFactory(BaseAppFactory):
         Create api function for starlette route, it wraps around user defined API
         callback and adapter class, and adds request logging and instrument metrics
         """
+        from anyio import to_thread, CapacityLimiter
         from starlette.concurrency import run_in_threadpool  # type: ignore
         from starlette.responses import JSONResponse
 
         from ..utils import is_async_callable
 
         async def api_func(request: Request) -> Response:
+            global limiter
+            if limiter is None:
+                limiter = CapacityLimiter(200)
             # handle_request may raise 4xx or 5xx exception.
             output = None
             with self.bento_service.context.in_request(request) as ctx:
@@ -332,7 +338,7 @@ class HTTPAppFactory(BaseAppFactory):
                         if is_async_callable(api.func):
                             output = await api.func(**input_data)
                         else:
-                            output = await run_in_threadpool(api.func, **input_data)
+                            output = await anyio.to_thread.run_sync(api.func, **input_data, limiter=limiter)
                     else:
                         args = (input_data,)
                         if api.needs_ctx:
@@ -340,7 +346,7 @@ class HTTPAppFactory(BaseAppFactory):
                         if is_async_callable(api.func):
                             output = await api.func(*args)
                         else:
-                            output = await run_in_threadpool(api.func, *args)
+                            output = await anyio.to_thread.run_sync(api.func, *args, limiter=limiter)
 
                     response = await api.output.to_http_response(
                         output, ctx if api.needs_ctx else None
